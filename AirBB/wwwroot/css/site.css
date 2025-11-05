@@ -5,10 +5,7 @@
 }
 
 
-.client-bg h4
-{
-    color: white;
-}
+
 
 /* Override Bootstrap text-dark class in client area */
 .client-bg .text-dark {
