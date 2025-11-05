@@ -4,12 +4,9 @@
     border-radius: 0.375rem;
 }
 
-.client-bg h1,
-.client-bg h2, 
-.client-bg h3,
-.client-bg h4,
-.client-bg h5,
-.client-bg h6 {
+
+.client-bg h4
+{
     color: white;
 }
 
