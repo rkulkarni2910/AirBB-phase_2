@@ -16,7 +16,6 @@ namespace AirBB.Models
     public class SessionManager : ISessionManager
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly ISession _session;
         private const string FILTER_KEY = "FilterCriteria";
         private const string RESERVATIONS_KEY = "Reservations";
         private const string COOKIE_KEY = "Reservations";
@@ -25,28 +24,40 @@ namespace AirBB.Models
         public SessionManager(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
-            _session = httpContextAccessor.HttpContext?.Session 
-                ?? throw new InvalidOperationException("Session is not available");
         }
+
+        // Helper to get the current session; may be null if called outside an HTTP request
+        private ISession? CurrentSession => _httpContextAccessor.HttpContext?.Session;
 
         public FilterCriteria GetFilterCriteria()
         {
-            var json = _session.GetString(FILTER_KEY);
-            return json == null ? new FilterCriteria() 
+            var session = CurrentSession;
+            if (session == null) return new FilterCriteria();
+
+            var json = session.GetString(FILTER_KEY);
+            return json == null ? new FilterCriteria()
                 : JsonSerializer.Deserialize<FilterCriteria>(json) ?? new FilterCriteria();
         }
 
         public void SetFilterCriteria(FilterCriteria criteria)
         {
+            var session = CurrentSession;
+            if (session == null) return;
+
             var json = JsonSerializer.Serialize(criteria);
-            _session.SetString(FILTER_KEY, json);
+            session.SetString(FILTER_KEY, json);
         }
 
         public List<Reservation> GetReservations()
         {
-            var json = _session.GetString(RESERVATIONS_KEY);
-            var sessionReservations = json == null ? new List<Reservation>() 
-                : JsonSerializer.Deserialize<List<Reservation>>(json) ?? new List<Reservation>();
+            var session = CurrentSession;
+            var sessionReservations = new List<Reservation>();
+            if (session != null)
+            {
+                var json = session.GetString(RESERVATIONS_KEY);
+                sessionReservations = json == null ? new List<Reservation>()
+                    : JsonSerializer.Deserialize<List<Reservation>>(json) ?? new List<Reservation>();
+            }
 
             // Sync with cookie if session is empty
             if (!sessionReservations.Any())
@@ -68,8 +79,12 @@ namespace AirBB.Models
 
         public void SetReservations(List<Reservation> reservations)
         {
+            var session = CurrentSession;
             var json = JsonSerializer.Serialize(reservations);
-            _session.SetString(RESERVATIONS_KEY, json);
+            if (session != null)
+            {
+                session.SetString(RESERVATIONS_KEY, json);
+            }
 
             // Update cookie with reservation IDs
             var reservationIds = reservations.Select(r => r.ResidenceId).ToList();
@@ -81,7 +96,7 @@ namespace AirBB.Models
                 SameSite = SameSiteMode.Lax
             };
             _httpContextAccessor.HttpContext?.Response.Cookies.Append(
-                COOKIE_KEY, 
+                COOKIE_KEY,
                 JsonSerializer.Serialize(reservationIds),
                 options
             );
