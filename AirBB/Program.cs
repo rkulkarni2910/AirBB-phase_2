@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using AirBB.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,25 @@ builder.Services.AddSession(options =>
 });
 
 var app = builder.Build();
+
+// Ensure database exists and migrations are applied
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AirBBContext>();
+        context.Database.EnsureCreated();
+        // Optional: Use Migrate() instead if you want to apply migrations
+        // context.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while initializing the database.");
+        throw; // Let the exception bubble up so we can see it in the logs
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
